@@ -1,0 +1,240 @@
+ssh-keygen -t ed25519
+cd .ssh/
+ls -ltrh
+ssh-copy-id root@IP-OF-YOUR-SERVER
+ssh-copy-id id_ed25519 root@IP-OF-YOUR-SERVER
+ssh-copy-id -i /home/user/.ssh/id_ed25519.pub root@IP-OF-YOUR-SERVER
+ssh-copy-id -i /home/user/.ssh/id_ed25519.pub user@IP-OF-YOUR-SERVER
+ssh -i id_ed25519 user@IP-OF-YOUR-SERVER
+cd ~
+ apt install pipx
+sudo apt install pipx
+pipx install --include-deps ansible
+export PATH=/home/user/.local/bin
+ansible --version
+pipx inject --include-apps ansible argcomplete
+sudo pipx inject --include-apps ansible argcomplete
+pipx inject --include-apps ansible argcomplete
+ip a
+sudo reboot
+ssh -i id_ed25519 user@IP-OF-YOUR-SERVER
+ansible zabbix_servers -m ansible.builtin.ping
+ansible zabbix_servers -m ansible.builtin.ping --ask-vault-pass
+ansible zabbix_servers   -m ansible.builtin.command   -a "id"   -b   --ask-vault-pass   --ask-become-pass
+ls -ltrh
+nano inventory.ini 
+ansible zabbix_servers   -m ansible.builtin.command   -a "id"   -b   --ask-vault-pass   --ask-become-pass
+sudo password
+ansible zabbix_servers -m ansible.builtin.command -a "whoami" --ask-vault-pass
+nano inventory.ini 
+ansible zabbix_servers -m ansible.builtin.command -a "whoami" --ask-vault-pass
+ansible zabbix_servers   -m ansible.builtin.command   -a "id"   -b   --ask-vault-pass   --ask-become-pass
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/defaults/main.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+ansible zabbix_servers   -m ansible.builtin.debug   -a "var=zabbix_repository_package_url"   --ask-vault-pass
+nano roles/zabbix/defaults/main.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+cat roles/zabbix/defaults/main.yml |grep zabbix
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/defaults/main.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/defaults/main.yml
+cat roles/zabbix/defaults/main.yml
+nano roles/zabbix/defaults/main.yml
+ansible-playbook playbook.yml --syntax-check
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/vars/main.yml
+nano ansible.cfg 
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano playbook.yml 
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano playbook.yml 
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano playbook.yml 
+vi playbook.yml 
+nano roles/zabbix/tasks/main.yml 
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/tasks/database.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/tasks/database.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano ansible.cfg 
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/tasks/database.yml 
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/tasks/database.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+
+roles/zabbix/tasks/database.yml
+
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+
+nano roles/zabbix/tasks/database.yml
+
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+
+grep -R "become_user: zabbix" -n roles/zabbix/
+
+nano roles/zabbix/tasks/main.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano roles/zabbix/tasks/database.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+ls-ltrh
+cd roles/
+ls -ltrh
+cd zabbix/
+ls -ltrh
+cd tasks/
+ls -ltrh
+nano validation.yml 
+ip a
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano /home/user/projet/installation-zabbix/roles/zabbix/tasks/validation.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+nano /home/user/projet/installation-zabbix/roles/zabbix/tasks/validation.yml
+vi /home/user/projet/installation-zabbix/roles/zabbix/tasks/validation.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+cat /home/user/projet/installation-zabbix/roles/zabbix/tasks/validation.yml
+ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+cd zabbix/tasks/
+  139  ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+  140  cat /home/user/projet/installation-zabbix/roles/zabbix/templates/apache.conf.j2
+  141  nano /home/user/projet/installation-zabbix/roles/zabbix/templates/apache.conf.j2
+  142  ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+  143  nano /home/user/projet/installation-zabbix/roles/zabbix/templates/apache.conf.j2
+  144  mv /home/user/projet/installation-zabbix/roles/zabbix/templates/apache.conf.j2 /home/user/projet/installation-zabbix/roles/zabbix/templates/apache.conf.j2.old
+  145  nano /home/user/projet/installation-zabbix/roles/zabbix/templates/apache.conf.j2
+  146  ls -la /usr/share/zabbix/ui
+  147  nano roles/zabbix/defaults/main.yml
+  148  nano roles/zabbix/templates/apache.conf.j2
+  149  ansible-playbook playbook.yml   --ask-vault-pass   --ask-become-pass   --tags frontend
+  150  ansible-playbook playbook.yml --ask-vault-pass --ask-become-pass
+  151  vi /home/user/projet/installation-zabbix/roles/zabbix/tasks/validation.yml
+  152  ip a | grep inet
+  159  ssh-copy-id -i /home/user/.ssh/id_ed25519.pub root@IP-OF-YOUR-SERVER
+  160  ssh-copy-id -i /home/user/.ssh/id_ed25519.pub user@IP-OF-YOUR-SERVER
+  161  ssh -i /home/user/.ssh/id_ed25519.pub user@IP-OF-YOUR-SERVER
+
+ansible -m ping all
+
+ssh -i /home/user/.ssh/id_ed25519.pub user@IP-OF-YOUR-SERVER
+
+ansible --version
+
+mkdir projet
+
+cd projet/
+
+mkdir installation-zabbix
+
+cd installation-zabbix/
+
+ls -ltrh
+
+cat >ansible.cfg
+
+ ls -ltrh
+
+cat >inventory.ini
+
+vi inventory.ini
+
+ssh -i /home/user/.ssh/id_ed25519.pub user@IP-OF-YOUR-SERVER
+
+vi inventory.ini
+
+nano inventory.ini
+
+cat >ansible.cfg
+
+ls -ltrh
+
+cat >requirements.yml
+
+nano procedure.txt
+
+ansible-galaxy collection install -r requirements.yml
+
+ansible-galaxy collection install -r requirements.yml --force
+
+mkdir group_vars
+
+cd group_vars/
+
+mkdir zabbix_servers
+
+cd zabbix_servers/
+
+ cat > main.yml
+
+cat > vault.yml
+
+vi vault.yml 
+
+
+ansible-vault encrypt group_vars/zabbix_servers/vault.yml
+
+ansible-vault edit group_vars/zabbix_servers/vault.yml
+
+mkdir -p roles/zabbix/defaults/
+
+cat > roles/zabbix/defaults/main.yml
+
+mkdir -p roles/zabbix/vars/
+
+cat > roles/zabbix/vars/main.yml
+
+mkdir -p roles/zabbix/tasks/
+
+cat > roles/zabbix/tasks/main.yml
+
+cat > roles/zabbix/tasks/repository.yml
+
+cat > roles/zabbix/tasks/database.yml
+
+cat > roles/zabbix/tasks/server.yml
+
+cat >roles/zabbix/tasks/server.yml
+
+cat > roles/zabbix/tasks/frontend.yml
+
+cat > roles/zabbix/tasks/agent.yml
+
+cat >roles/zabbix/tasks/validation.yml
+
+cat > roles/zabbix/handlers/main.yml
+
+mkdir -p roles/zabbix/handlers/
+
+cat >roles/zabbix/handlers/main.yml
+
+cat > roles/zabbix/templates/zabbix_server.conf.j2
+
+mkdir -p roles/zabbix/templates/
+
+cat > roles/zabbix/templates/zabbix_server.conf.j2
+
+cat > roles/zabbix/templates/zabbix_agentd.conf.j2
+
+cat > roles/zabbix/templates/apache.conf.j2
+
+cat >playbook.yml
+
+cat > roles/zabbix/README.md
+
+ln -s roles/zabbix/README.md README.md
+ 
+ansible-galaxy collection install -r requirements.yml
+
+ansible-galaxy collection install -r requirements.yml --force
+
+ansible-galaxy collection list
+
+ansible zabbix_servers -m ansible.builtin.ping
+
+ansible zabbix_servers -m ansible.builtin.pingansible-playbook --syntax-check playbook.yml
+
+ansible-playbook --syntax-check playbook.yml
+
+ansible-playbook   playbook.yml   --ask-vault-pass

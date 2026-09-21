@@ -1,0 +1,711 @@
+
+mkdir -p ansible_deploiement_livrable
+
+ansible_deploiement_livrable/
+│
+├── inventory.ini
+├── playbook.yml
+├── group_vars/
+│   └── all.yml
+│
+├── files/
+│   └── mon_livrable.tar.gz
+│
+├── roles/
+│   └── deploy_livrable/
+│       │
+│       ├── tasks/
+│       │   └── main.yml
+│       │
+│       └── templates/
+│           └── script_launcher.sh.j2
+│
+└── README.md
+
+Structure finale :
+
+ansible_deploiement_livrable/
+│
+├── inventory.ini
+├── playbook.yml
+├── group_vars/
+│   └── all.yml
+│
+├── files/
+│   └── mon_livrable.tar.gz
+│
+├── roles/
+│   └── deploy_livrable/
+│       │
+│       ├── tasks/
+│       │   └── main.yml
+│       │
+│       └── templates/
+│           └── script_launcher.sh.j2
+│
+└── README.md
+
+2. Création de l'inventaire
+
+Fichier :
+
+inventory.ini
+
+Exemple avec 3 serveurs :
+
+[serveurs_web]
+serveur01 ansible_host=192.168.1.101
+serveur02 ansible_host=192.168.1.102
+serveur03 ansible_host=192.168.1.103
+
+
+[serveurs_web:vars]
+ansible_user=deploy
+
+3. Variables globales
+
+Créer :
+
+group_vars/all.yml
+
+Contenu :
+
+livrable_source: "./files/mon_livrable.tar.gz"
+
+destination_livrable: "/sources/mon_livrable.tar.gz"
+
+service_a_arreter: "monservice.service"
+
+repertoire_sauvegarde: "/sauvegardes"
+
+prefix_backup: "backup__"
+
+script_installation: "/scripts/mon_script_d_installation_generique_a_lancer.sh"
+
+log_execution: "/var/log/deploiement_script.log"
+
+date_execution: "{{ lookup('pipe','date +%d/%m/%Y') }}"
+
+4. Création du playbook principal
+
+Fichier :
+
+playbook.yml
+
+Contenu :
+
+---
+- name: Déploiement livrable applicatif
+  hosts: serveurs_web
+  become: yes
+
+  roles:
+    - deploy_livrable
+
+5. Création du rôle Ansible
+
+Créer :
+
+ansible-galaxy init roles/deploy_livrable
+
+Cela crée :
+
+roles/deploy_livrable/tasks/main.yml
+
+6. Création des tâches Ansible
+
+Modifier :
+
+roles/deploy_livrable/tasks/main.yml
+
+Avec :
+
+---
+
+##############################################
+# 1 - Vérification espace disque
+##############################################
+
+- name: Vérifier espace /var/www
+  shell: |
+    df -P /var/www | awk 'NR==2 {print $5}' | tr -d '%'
+  register: espace_var_www
+
+
+- name: Vérifier espace /sources
+  shell: |
+    df -P /sources | awk 'NR==2 {print $5}' | tr -d '%'
+  register: espace_sources
+
+
+- name: Arrêt si espace disque plein
+  fail:
+    msg: >
+      Veuillez vérifier l'espace disque.
+      /var/www={{ espace_var_www.stdout }}%
+      /sources={{ espace_sources.stdout }}%
+  when:
+    - espace_var_www.stdout|int >= 100
+      or
+      espace_sources.stdout|int >= 100
+
+
+
+##############################################
+# 2 - Calcul hash du livrable
+##############################################
+
+- name: Calculer hash SHA256 du livrable
+  delegate_to: localhost
+  stat:
+    path: "{{ livrable_source }}"
+    checksum_algorithm: sha256
+  register: hash_livrable
+
+
+
+- name: Afficher le hash
+  debug:
+    msg:
+      - "Hash SHA256 livrable : {{ hash_livrable.stat.checksum }}"
+
+
+
+##############################################
+# 3 - Transfert du livrable
+##############################################
+
+- name: Copier le livrable
+  copy:
+    src: "{{ livrable_source }}"
+    dest: "{{ destination_livrable }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+
+
+##############################################
+# 4 - Vérification hash distant
+##############################################
+
+- name: Vérifier hash sur serveur distant
+  stat:
+    path: "{{ destination_livrable }}"
+    checksum_algorithm: sha256
+  register: hash_distant
+
+
+
+- name: Comparer les hash
+  fail:
+    msg:
+      - "Erreur intégrité livrable"
+      - "Source={{ hash_livrable.stat.checksum }}"
+      - "Destination={{ hash_distant.stat.checksum }}"
+  when:
+    - hash_livrable.stat.checksum != hash_distant.stat.checksum
+
+
+
+##############################################
+# 5 - Suppression anciennes sauvegardes
+##############################################
+
+- name: Recherche sauvegardes anciennes
+  find:
+    paths: "{{ repertoire_sauvegarde }}"
+    patterns:
+      - "{{ prefix_backup }}*"
+    age: 8m
+    age_stamp: mtime
+    recurse: yes
+  register: anciennes_sauvegardes
+
+
+
+- name: Supprimer anciennes sauvegardes
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ anciennes_sauvegardes.files }}"
+
+
+
+##############################################
+# 6 - Arrêt service applicatif
+##############################################
+
+- name: Stop service applicatif
+  systemd:
+    name: "{{ service_a_arreter }}"
+    state: stopped
+
+
+
+##############################################
+# 7 - Lancement script installation
+##############################################
+
+- name: Lancer script installation
+  shell: >
+    bash {{ script_installation }}
+    {{ date_execution }}
+    > {{ log_execution }} 2>&1
+  register: resultat_script
+  async: 3600
+  poll: 10
+
+
+
+##############################################
+# 8 - Affichage résultat
+##############################################
+
+- name: Afficher résultat execution
+  debug:
+    var: resultat_script
+
+
+
+##############################################
+# 9 - Afficher logs installation
+##############################################
+
+- name: Lire logs installation
+  shell:
+    cat {{ log_execution }}
+  register:
+    logs_installation
+
+
+
+- name: Afficher logs
+  debug:
+    msg: "{{ logs_installation.stdout_lines }}"
+
+7. Tester la connexion Ansible
+
+Avant de lancer le déploiement :
+
+ansible all -i inventory.ini -m ping
+
+Résultat attendu :
+
+serveur01 | SUCCESS
+serveur02 | SUCCESS
+serveur03 | SUCCESS
+
+8. Vérifier la syntaxe du playbook
+
+Toujours faire :
+
+ansible-playbook \
+-i inventory.ini \
+playbook.yml \
+--syntax-check
+
+Résultat :
+
+playbook: playbook.yml
+
+9. Faire un test à blanc
+
+Exécuter :
+
+ansible-playbook \
+-i inventory.ini \
+playbook.yml \
+--check
+
+Cela permet de voir ce qui serait modifié sans appliquer.
+10. Lancer le déploiement réel
+
+Commande :
+
+ansible-playbook \
+-i inventory.ini \
+playbook.yml
+
+11. Exemple du déroulement
+
+Sur chaque serveur :
+
+TASK [Vérifier espace /var/www]
+
+/var/www = 45%
+
+
+TASK [Vérifier espace /sources]
+
+/sources = 60%
+
+
+TASK [Calculer hash livrable]
+
+SHA256 :
+8f23a88c7dxxxxxx
+
+
+TASK [Copier le livrable]
+
+mon_livrable.tar.gz transféré
+
+
+TASK [Comparer hash]
+
+OK
+
+
+TASK [Supprimer anciennes sauvegardes]
+
+backup__2025_01.tar.gz supprimé
+
+
+TASK [Stop service]
+
+monservice.service stopped
+
+
+TASK [Lancer script]
+
+bash mon_script_d_installation_generique_a_lancer.sh 21/09/2026
+
+
+TASK [Afficher logs]
+
+Installation terminée avec succès
+
+12. Améliorations possibles en environnement production
+
+
+# Creation de l'inventaire
+
+inventory.ini
+
+exemple 3 serveurs :
+
+[serveurs_web]
+serveur01 ansible_host=192.168.1.101
+serveur02 ansible_host=192.168.1.102
+serveur03 ansible_host=192.168.1.103
+
+
+[serveurs_web:vars]
+ansible_user=deploy
+
+
+# Creer les variables globales
+
+group_vars/all.yml
+
+livrable_source: "./files/mon_livrable.tar.gz"
+
+destination_livrable: "/sources/mon_livrable.tar.gz"
+
+service_a_arreter: "monservice.service"
+
+repertoire_sauvegarde: "/sauvegardes"
+
+prefix_backup: "backup__"
+
+script_installation: "/scripts/mon_script_d_installation_generique_a_lancer.sh"
+
+log_execution: "/var/log/deploiement_script.log"
+
+date_execution: "{{ lookup('pipe','date +%d/%m/%Y') }}"
+
+
+# Creation du playbook
+
+playbook.yml
+
+---
+- name: Déploiement livrable applicatif
+  hosts: serveurs_web
+  become: yes
+
+  roles:
+    - deploy_livrable
+
+
+
+#Création du rôle Ansible
+
+Créer :
+
+ansible-galaxy init roles/deploy_livrable
+
+##################################################
+# 6. Création des tâches Ansible
+
+Modifier :
+
+roles/deploy_livrable/tasks/main.yml
+
+---
+
+##############################################
+# 1 - Vérification espace disque
+##############################################
+
+- name: Vérifier espace /var/www
+  shell: |
+    df -P /var/www | awk 'NR==2 {print $5}' | tr -d '%'
+  register: espace_var_www
+
+
+- name: Vérifier espace /sources
+  shell: |
+    df -P /sources | awk 'NR==2 {print $5}' | tr -d '%'
+  register: espace_sources
+
+
+- name: Arrêt si espace disque plein
+  fail:
+    msg: >
+      Veuillez vérifier l'espace disque.
+      /var/www={{ espace_var_www.stdout }}%
+      /sources={{ espace_sources.stdout }}%
+  when:
+    - espace_var_www.stdout|int >= 100
+      or
+      espace_sources.stdout|int >= 100
+
+
+
+##############################################
+# 2 - Calcul hash du livrable
+##############################################
+
+- name: Calculer hash SHA256 du livrable
+  delegate_to: localhost
+  stat:
+    path: "{{ livrable_source }}"
+    checksum_algorithm: sha256
+  register: hash_livrable
+
+
+
+- name: Afficher le hash
+  debug:
+    msg:
+      - "Hash SHA256 livrable : {{ hash_livrable.stat.checksum }}"
+
+
+
+##############################################
+# 3 - Transfert du livrable
+##############################################
+
+- name: Copier le livrable
+  copy:
+    src: "{{ livrable_source }}"
+    dest: "{{ destination_livrable }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+
+
+##############################################
+# 4 - Vérification hash distant
+##############################################
+
+- name: Vérifier hash sur serveur distant
+  stat:
+    path: "{{ destination_livrable }}"
+    checksum_algorithm: sha256
+  register: hash_distant
+
+
+
+- name: Comparer les hash
+  fail:
+    msg:
+      - "Erreur intégrité livrable"
+      - "Source={{ hash_livrable.stat.checksum }}"
+      - "Destination={{ hash_distant.stat.checksum }}"
+  when:
+    - hash_livrable.stat.checksum != hash_distant.stat.checksum
+
+
+
+##############################################
+# 5 - Suppression anciennes sauvegardes
+##############################################
+
+- name: Recherche sauvegardes anciennes
+  find:
+    paths: "{{ repertoire_sauvegarde }}"
+    patterns:
+      - "{{ prefix_backup }}*"
+    age: 8m
+    age_stamp: mtime
+    recurse: yes
+  register: anciennes_sauvegardes
+
+
+
+- name: Supprimer anciennes sauvegardes
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ anciennes_sauvegardes.files }}"
+
+
+
+##############################################
+# 6 - Arrêt service applicatif
+##############################################
+
+- name: Stop service applicatif
+  systemd:
+    name: "{{ service_a_arreter }}"
+    state: stopped
+
+
+
+##############################################
+# 7 - Lancement script installation
+##############################################
+
+- name: Lancer script installation
+  shell: >
+    bash {{ script_installation }}
+    {{ date_execution }}
+    > {{ log_execution }} 2>&1
+  register: resultat_script
+  async: 3600
+  poll: 10
+
+
+
+##############################################
+# 8 - Affichage résultat
+##############################################
+
+- name: Afficher résultat execution
+  debug:
+    var: resultat_script
+
+
+
+##############################################
+# 9 - Afficher logs installation
+##############################################
+
+- name: Lire logs installation
+  shell:
+    cat {{ log_execution }}
+  register:
+    logs_installation
+
+
+
+- name: Afficher logs
+  debug:
+    msg: "{{ logs_installation.stdout_lines }}"
+
+######################################################
+
+ansible all -i inventory.ini -m ping
+
+######################################################
+
+serveur01 | SUCCESS
+serveur02 | SUCCESS
+serveur03 | SUCCESS
+
+
+ansible-playbook \
+-i inventory.ini \
+playbook.yml \
+--syntax-check
+
+
+### TEst a blanc ######
+
+ansible-playbook \
+-i inventory.ini \
+playbook.yml \
+--check
+
+###### Lancer le deploiement reel ###########
+
+ansible-playbook \
+-i inventory.ini \
+playbook.yml
+
+# Exemple :
+
+TASK [Vérifier espace /var/www]
+
+/var/www = 45%
+
+
+TASK [Vérifier espace /sources]
+
+/sources = 60%
+
+
+TASK [Calculer hash livrable]
+
+SHA256 :
+8f23a88c7dxxxxxx
+
+
+TASK [Copier le livrable]
+
+mon_livrable.tar.gz transféré
+
+
+TASK [Comparer hash]
+
+OK
+
+
+TASK [Supprimer anciennes sauvegardes]
+
+backup__2025_01.tar.gz supprimé
+
+
+TASK [Stop service]
+
+monservice.service stopped
+
+
+TASK [Lancer script]
+
+bash mon_script_d_installation_generique_a_lancer.sh 21/09/2026
+
+
+TASK [Afficher logs]
+
+Installation terminée avec succès
+
+
+### Pour mettre les 3 serveurs en cascade si besoin pour le playbook
+
+---
+- name: Déploiement progressif
+  hosts: serveurs_web
+  serial: 1
+  become: yes
+
+  roles:
+    - deploy_livrable
+
+###########################
+
+    serveur01 est mis à jour,
+
+    validation,
+
+    serveur02,
+
+    validation,
+
+    serveur03.
+
+

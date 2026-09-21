@@ -1,0 +1,318 @@
+
+# Cmmande d'execution sur le serveur
+ansible zabbix_servers -m ansible.builtin.command -a 'uptime'   --ask-vault-pass   --ask-become-pass
+
+Exemple attendu :
+
+zabbix/
+├── playbook.yml
+├── inventory.ini
+├── requirements.yml
+└── roles/
+    └── zabbix/
+        ├── defaults/
+        │   └── main.yml
+        ├── vars/
+        │   └── main.yml
+        ├── tasks/
+        │   ├── main.yml
+        │   ├── repository.yml
+        │   ├── database.yml
+        │   ├── server.yml
+        │   ├── frontend.yml
+        │   ├── agent.yml
+        │   └── validation.yml
+        ├── handlers/
+        │   └── main.yml
+        ├── templates/
+        │   ├── zabbix_server.conf.j2
+        │   ├── zabbix_agentd.conf.j2
+        │   └── apache.conf.j2
+        └── README.md
+
+
+
+#####################
+# Exemple Generique #
+#####################
+
+## Architecture
+
+- Debian 13
+- Zabbix 7.0 LTS
+- PostgreSQL
+- Apache 2
+- PHP 8.4
+- Zabbix Server
+- Zabbix Agent
+- Zabbix Frontend
+- dépôt officiel Zabbix
+
+## Pré-requis
+
+Le contrôleur Ansible utilise :
+
+- ansible-core 2.21.4
+- Python 3.13
+- Jinja2 3.1.6
+- PyYAML 6.0.3
+
+Le serveur cible doit être :
+
+- Debian 13 Trixie
+- accessible en SSH
+- capable d'utiliser sudo
+- connecté à Internet pour télécharger les paquets
+
+## Installation de la collection
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+```
+Le mot de passe PostgreSQL est stocké dans :
+group_vars/zabbix_servers/vault.yml
+
+
+Chiffrer le fichier :
+ansible-vault encrypt group_vars/zabbix_servers/vault.yml
+
+Modifier le secret :
+ansible-vault edit group_vars/zabbix_servers/vault.yml
+
+Verifier de la syntaxe
+ansible-playbook --syntax-check playbook.yml
+
+Vérification Ansible Lint
+ansible-lint playbook.yml
+
+
+Exécution
+
+Avec demande du mot de passe Vault :
+
+ansible-playbook playbook.yml --ask-vault-pass
+
+
+Ou avec un fichier de mot de passe :
+ansible-playbook \
+  playbook.yml \
+  --vault-password-file ~/.ansible_vault_password
+
+Test en mode check
+ansible-playbook \
+  playbook.yml \
+  --check \
+  --diff \
+  --ask-vault-pass
+
+check after installation
+systemctl status zabbix-server
+systemctl status zabbix-agent
+systemctl status apache2
+systemctl status postgresql
+
+Check ports
+
+ss -lntp | grep -E '10050|10051|80|5432'
+
+Check le frontend
+
+http://ADRESSE_IP/zabbix/
+
+Check Zabbix Server :
+systemctl is-active zabbix-server
+
+Check Agent
+systemctl is-active zabbix-agent
+
+PostgreSQL :
+systemctl is-active postgresql
+
+Logs
+
+Zabbix Server :
+
+journalctl -u zabbix-server
+tail -f /var/log/zabbix/zabbix_server.log
+
+Agent :
+tail -f /var/log/zabbix/zabbix_agentd.log
+
+Apache:
+journalctl -u apache2
+
+PostgreSQL :
+journalctl -u postgresql
+
+
+Idempotence
+
+Le rôle est conçu pour être idempotent.
+
+En particulier, le schéma PostgreSQL n'est importé que si la table dbversion n'existe pas.
+
+Un second lancement du playbook ne doit donc pas réimporter le schéma Zabbix.
+Sécurité
+
+Le mot de passe PostgreSQL ne doit jamais être placé directement dans :
+
+    defaults/main.yml
+
+    vars/main.yml
+
+    les templates
+
+    inventory.ini
+
+Il doit être stocké dans Ansible Vault ou fourni par une autre source de secrets.
+Production
+
+Pour une infrastructure importante :
+
+    placer PostgreSQL sur un serveur séparé ;
+
+    mettre Apache derrière un reverse proxy HTTPS ;
+
+    utiliser TLS ;
+
+    utiliser un certificat valide ;
+
+    sauvegarder régulièrement PostgreSQL ;
+
+    surveiller les logs Zabbix ;
+
+    dimensionner PostgreSQL selon le nombre d'hôtes et d'items ;
+
+    utiliser TimescaleDB si nécessaire pour les environnements importants ;
+
+    utiliser Zabbix Agent 2 si les plugins modernes sont nécessaires ;
+
+    ne pas exposer PostgreSQL sur Internet ;
+
+    limiter les ports 10050/10051 avec un firewall ;
+
+    utiliser des secrets externes pour les mots de passe ;
+
+    tester les restaurations des sauvegardes ;
+
+    versionner le rôle et les collections Ansible.
+
+
+---
+
+# 23. Installation complète
+
+Depuis le contrôleur :
+
+```bash
+cd zabbix-debian13
+
+ansible-galaxy collection install -r requirements.yml
+
+ansible-galaxy collection list
+
+community.postgresql  4.2.0
+
+ansible zabbix_servers -m ansible.builtin.ping
+
+# Verifier la syntaxe 
+ansible-playbook --syntax-check playbook.yml
+
+ansible-lint playbook.yml
+
+# Lancer l'installation
+
+ansible-playbook \
+  playbook.yml \
+  --ask-vault-pass
+
+# ou 
+ansible-playbook \
+  -i inventory.ini \
+  playbook.yml \
+  --vault-password-file ~/.ansible_vault_password
+
+
+# Check apres verification
+
+systemctl --no-pager --full status zabbix-server
+systemctl --no-pager --full status zabbix-agent
+systemctl --no-pager --full status apache2
+systemctl --no-pager --full status postgresql
+
+ss -lntp | grep -E ':(80|10050|10051|5432)\b'
+
+curl -I http://127.0.0.1/zabbix/
+
+sudo -u postgres psql -d zabbix -c 'SELECT * FROM dbversion;'
+
+systemctl is-active zabbix-server
+
+systemctl is-active zabbix-agent
+
+##########################################
+# Points importants concernant Ansible 2.21.4
+
+# Voici les packages qu'utilise ansible
+
+ansible.builtin.apt
+ansible.builtin.assert
+ansible.builtin.command
+ansible.builtin.package_facts
+ansible.builtin.shell
+ansible.builtin.systemd_service
+ansible.builtin.service_facts
+ansible.builtin.template
+ansible.builtin.uri
+ansible.builtin.wait_for
+
+community.postgresql.postgresql_db
+community.postgresql.postgresql_user
+community.postgresql.postgresql_query
+community.postgresql.postgresql_pg_hba
+
+####
+Recommandations de production
+
+Pour un serveur de production, je modifierais surtout l'architecture plutôt que le principe du rôle :
+
+    PostgreSQL séparé pour les installations importantes.
+
+    HTTPS obligatoire pour le frontend.
+
+    Firewall :
+
+        TCP 80/443 depuis les utilisateurs/reverse proxy ;
+
+        TCP 10051 uniquement depuis les Zabbix proxies/agents actifs autorisés ;
+
+        TCP 10050 uniquement depuis le serveur Zabbix ;
+
+        PostgreSQL 5432 non exposé publiquement.
+
+    Sauvegarde PostgreSQL quotidienne avec tests de restauration.
+
+    Ansible Vault ou gestionnaire de secrets externe pour DBPassword.
+
+    Ne pas mettre le mot de passe PostgreSQL dans Git.
+
+    Pour une grosse volumétrie, dimensionner PostgreSQL (shared_buffers, work_mem, WAL, connexions, stockage SSD).
+
+    En environnement Zabbix important, étudier TimescaleDB et le partitionnement.
+
+    Utiliser Agent 2 si les plugins Agent 2 sont nécessaires.
+
+    Épingler la collection Ansible et le major Zabbix dans le dépôt Git.
+
+    Tester le rôle sur une VM Debian 13 avant production.
+
+    Exécuter systématiquement :
+
+
+# Comment le lancer 
+
+ansible-playbook --syntax-check playbook.yml
+ansible-lint playbook.yml
+ansible-playbook playbook.yml --check --diff --ask-vault-pass
+
+
