@@ -1,0 +1,103 @@
+---
+- name: Installer et configurer Nginx
+  hosts: webservers
+  become: true
+
+  tasks:
+    - name: Installer Nginx sur Debian
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Installer Nginx sur Red Hat
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Activer et démarrer Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true
+
+-------------------------------------
+---
+- name: Mettre à jour les serveurs
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Mise à jour Debian/Ubuntu
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+
+    - name: Mise à jour Red Hat/Rocky/Alma
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_only: true
+      when: ansible_os_family == "RedHat"
+
+
+#Creer des utilisateurs avec une clé SSH
+
+---
+- name: Configurer un utilisateur administrateur
+  hosts: all
+  become: true
+
+  vars:
+    admin_user: ansibleadmin
+    ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA..."
+
+  tasks:
+    - name: Créer l'utilisateur
+      ansible.builtin.user:
+        name: "{{ admin_user }}"
+        shell: /bin/bash
+        groups: sudo
+        append: true
+        create_home: true
+      when: ansible_os_family == "Debian"
+
+    - name: Créer l'utilisateur sur Red Hat
+      ansible.builtin.user:
+        name: "{{ admin_user }}"
+        shell: /bin/bash
+        groups: wheel
+        append: true
+        create_home: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Installer la clé SSH
+      ansible.posix.authorized_key:
+        user: "{{ admin_user }}"
+        key: "{{ ssh_public_key }}"
+        state: present
+
+
+
+
+      [debian]
+debian01 ansible_host=192.168.1.10
+debian02 ansible_host=192.168.1.11
+
+[redhat]
+rhel01 ansible_host=192.168.1.20
+rocky01 ansible_host=192.168.1.21
+
+[webservers:children]
+debian
+redhat
+
+#ansible-playbook -i inventory.ini nginx.yml
+
+
+
+
+        
